@@ -22,7 +22,7 @@ RUN pip install --force-reinstall pip==9.0.3 && \
 ADD . /analysis
 WORKDIR /analysis   
 RUN pip install -r requirements.txt &&\
-    tar -xvf bodycrop.tar.gz &&\
+    tar -xzvf bodycrop.tar.gz &&\
 	cd bodycrop &&\
 	mkdir models &&\
 	cd models
