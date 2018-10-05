@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgtk2.0-dev \
         git \
         tar \
+        wget \
         vim && \
     rm -rf /var/lib/apt/lists/*
 
@@ -25,9 +26,9 @@ RUN pip install -r requirements.txt &&\
     tar -xzvf bodycrop.tar.gz &&\
 	cd bodycrop &&\
 	mkdir models &&\
-	cd models
-ADD https://www.dropbox.com/s/2dw1oz9l9hi9avg/optimized_openpose.pb .
-WORKDIR /analysis/bodycrop
+	cd models && \
+    wget https://www.dropbox.com/s/2dw1oz9l9hi9avg/optimized_openpose.pb --no-check-certificate
+WORKDIR /analysis
 
 EXPOSE 8888
 
