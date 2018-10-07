@@ -7,4 +7,4 @@ build:
 	docker build -t sf:1 .
 
 run:
-	docker run -v /home/ak/Documents/Projects/vol:/analysis -p 8888:8888 -it sf:1
+	docker run -p 8888:8888 -it sf:1
