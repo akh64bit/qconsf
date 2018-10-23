@@ -17,7 +17,7 @@ RUN chmod a+rwx Miniconda3-4.5.4-Linux-x86_64.sh && \
     rm Miniconda3-4.5.4-Linux-x86_64.sh
 ENV PATH="/root/miniconda3/bin:${PATH}"
 RUN pip install --force-reinstall pip==9.0.3 && \
-    conda create -n 36 python=3.6 anaconda -y && \
+    conda create -n 36 python=3.6 -y && \
     /bin/bash -c "source activate 36" && \
     mkdir analysis
 ADD . /analysis
