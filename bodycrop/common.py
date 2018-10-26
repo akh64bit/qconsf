@@ -6,11 +6,10 @@ and derived from the OpenPose Library (https://github.com/CMU-Perceptual-Computi
 from collections import defaultdict
 from enum import Enum
 import math
-
 import numpy as np
 import itertools
-import cv2
 from scipy.ndimage.filters import maximum_filter
+from PIL import Image, ImageDraw
 
 
 class CocoPart(Enum):
@@ -35,23 +34,24 @@ class CocoPart(Enum):
     Background = 18
     
 parts_dict={'Nose':[0],'Neck':[1],'Shoulders':[2,5],'Elbows':[3,6],'Wrists':[4,7],'Hips':[8,11],'Knees':[9,12],'Ankles':[10,13],'Eyes':[14,15],'Ears':[16,17]}
-parts_if_notfound_upper={'Eyes':'Ears','Ears':'Eyes','Nose':'Ears','Neck':'Nose','Shoulders':'Neck','Elbows':'Shoulders','Wrists':'Elbows','Hips':'Wrists','Knees':'Hips'}
-parts_if_notfound_lower={'Ears':'Nose','Nose':'Neck','Neck':'Shoulders','Shoulders':'Elbows','Elbows':'Wrists','Wrists':'Hips','Hips':'Knees',
-                  'Knees':'Ankles','Ankles':'Knees'}
+#parts_if_notfound_upper={'Eyes':'Ears','Ears':'Eyes','Nose':'Ears','Neck':'Nose','Shoulders':'Neck','Elbows':'Shoulders','Wrists':'Elbows','Hips':'Wrists#','Knees':'Hips'}
+#parts_if_notfound_lower=#{'Ears':'Nose','Nose':'Neck','Neck':'Shoulders','Shoulders':'Elbows','Elbows':'Wrists','Wrists':'Hips','Hips':'Knees',
+#                  'Knees':'Ankles','Ankles':'Knees'}
+body_parts_dict={0:'Eyes',1:'Ears',2:'Nose',3:'Neck',4:'Shoulders',5:'Elbows',6:'Wrists',7:'Hips',8:'Knees',9:'Ankles'}
 
 CocoPairs = [
     (1, 2), (1, 5), (2, 3), (3, 4), (5, 6), (6, 7), (1, 8), (8, 9), (9, 10), (1, 11),
     (11, 12), (12, 13), (1, 0), (0, 14), (14, 16), (0, 15), (15, 17), (2, 16), (5, 17)
 ]   # = 19
-#CocoPairsRender = CocoPairs[:-2]
+CocoPairsRender = CocoPairs[:-2]
 CocoPairsNetwork = [
     (12, 13), (20, 21), (14, 15), (16, 17), (22, 23), (24, 25), (0, 1), (2, 3), (4, 5),
     (6, 7), (8, 9), (10, 11), (28, 29), (30, 31), (34, 35), (32, 33), (36, 37), (18, 19), (26, 27)
  ]  # = 19
 
-CocoColors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0],
-              [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255],
-              [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
+CocoColors = [(255, 0, 0), (255, 85, 0), (255, 170, 0), (255, 255, 0), (170, 255, 0), (85, 255, 0), (0, 255, 0),
+              (0, 255, 85), (0, 255, 170), (0, 255, 255), (0, 170, 255), (0, 85, 255), (0, 0, 255), (85, 0, 255),
+              (170, 0, 255), (255, 0, 255), (255, 0, 170), (255, 0, 85)]
 
 
 NMS_Threshold = 0.1
@@ -206,11 +206,41 @@ def get_score(x1, y1, x2, y2, pafMatX, pafMatY):
 
     return sum(local_scores * thidxs), sum(thidxs)
 
+def draw_humans(img1_raw, human_list):
+    img=np.asarray(img1_raw)
+    img_copied = np.copy(img)
+    image_h, image_w = img_copied.shape[:2]
+    centers = {}
+    c=10
+    for human in human_list:
+        part_idxs = human.keys()
+
+        # draw point
+        draw = ImageDraw.Draw(img1_raw)
+        for i in range(CocoPart.Background.value):
+            if i not in part_idxs:
+                continue
+            part_coord = human[i][1]
+            center = (int(part_coord[0] * image_w + 0.5), int(part_coord[1] * image_h + 0.5))
+            centers[i] = center
+            bbox =  (center[0] - c, center[1] - c, center[0] + c, center[1] + c)
+            draw.ellipse(bbox, fill=CocoColors[i])
+
+        # draw line
+        ctr=1
+        for pair_order, pair in enumerate(CocoPairsRender):
+            if pair[0] not in part_idxs or pair[1] not in part_idxs:
+                continue
+            draw.line((centers[pair[0]][0],centers[pair[0]][1],centers[pair[1]][0],centers[pair[1]][1]), fill=CocoColors[pair_order],width=5)
+    img1_raw=np.asarray(img1_raw)
+    del draw
+    return img1_raw
+
 def crop_image(img,parts_list,upper_body,lower_body):
     upper_coord=0.0
     lower_coord=0.0
-    img=cv2.imread(img)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img=Image.open(img)
+    img=np.asarray(img)
     image_h, image_w = img.shape[:2]
     if upper_body=='Ankles' or lower_body=='Eyes':
         raise NameError('Body parts not consistent')
