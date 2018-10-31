@@ -236,34 +236,59 @@ def draw_humans(img1_raw, human_list):
     del draw
     return img1_raw
 
-def crop_image(img,parts_list,upper_body,lower_body):
-    upper_coord=0.0
-    lower_coord=0.0
+def crop_image(img, humans_list, upper_body, lower_body):
+    upper_coord   = 0.0
+    upper_coord_x = 0.0
+    lower_coord   = 0.0
+    lower_coord_x = 0.0
+    
     img=Image.open(img)
     img=np.asarray(img)
     image_h, image_w = img.shape[:2]
+    
     if upper_body=='Ankles' or lower_body=='Eyes':
         raise NameError('Body parts not consistent')
     
-    for part in parts_list:
-        parts=part.keys()
-        if upper_body=='Nose' or upper_body=='Neck':
-               inte=parts_dict[upper_body]
-               upper_coord=part[inte[0]][1][1] #interested only in heights.
+    for human in humans_list:
+        parts = human.keys()
+        inte  = parts_dict[upper_body] # could be [1] or [2,3]          
+        
+        if upper_body == 'Nose' or upper_body == 'Neck':               
+               upper_coord   = human[inte[0]][1][1] #interested only in heights.
+               upper_coord_x = human[inte[0]][1][0] 
         else:
-            inte=parts_dict[upper_body]
-            upper_coord=(part[inte[0]][1][1]+part[inte[1]][1][1])/2
-            
-        if lower_body=='Nose' or lower_body=='Neck':
-               inte=parts_dict[lower_body]
-               lower_coord=part[inte[0]][1][1] #interested only in heights.
+            upper_coord   = (human[inte[0]][1][1] + human[inte[1]][1][1])/2
+            upper_coord_x = (human[inte[0]][1][0] + human[inte[1]][1][0])/2
+        
+        inte = parts_dict[lower_body]
+        if lower_body == 'Nose' or lower_body == 'Neck':
+               lower_coord   = human[inte[0]][1][1] #interested only in heights.
+               lower_coord_x = human[inte[0]][1][0] 
         else:
-            inte=parts_dict[lower_body]
-            lower_coord=(part[inte[0]][1][1]+part[inte[1]][1][1])/2
+            lower_coord   = (human[inte[0]][1][1] + human[inte[1]][1][1])/2
+            lower_coord_x = (human[inte[0]][1][0] + human[inte[1]][1][0])/2
             
-    image_h_u=int(upper_coord*image_h)
-    image_h_l=int(lower_coord*image_h)
+            
+    image_h_u = int(upper_coord * image_h)
+    image_h_l = int(lower_coord * image_h)
     
-    img=img[image_h_u:image_h_l]
+    image_w_left  = int(upper_coord_x * image_w)
+    image_w_right = int(lower_coord_x * image_w)
+    aspect_ratio  = image_h / image_w
+    image_w       = int((image_w_left + image_w_right)/2)
     
-    return img
+
+    img = img[image_h_u:image_h_l]
+    wid = int((img.shape[0]/aspect_ratio)/2)
+    img = img.transpose(1,0,2)
+    img = img[image_w-2*wid:image_w+2*wid]
+    img = img.transpose(1,0,2)
+    
+    crop_coordinates = {
+        'x':      image_w-2*wid,
+        'y':      image_h_u,
+        'width':  img.shape[1],
+        'height': img.shape[0]
+    }
+    
+    return img, crop_coordinates
