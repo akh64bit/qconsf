@@ -147,13 +147,12 @@ class SmartBodyCrop:
 
             humans = estimate_pose(heatMat[0], pafMat[0])
             start = print_time("pose estimated in: ", start)
-            print(humans)
 
-            img = crop_image(imgpath, humans, upper_body, lower_body)
+            img, crop_coordinates = crop_image(imgpath, humans, upper_body, lower_body)
             start = print_time("image cropped in: ", start)
 
             sess.close()
-            return img
+            return img, crop_coordinates
 
     def detect_parts(self, imgpath):
         img1_raw = Image.open(imgpath)
