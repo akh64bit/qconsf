@@ -75,7 +75,7 @@ class SmartBodyCrop:
         local_image_path = '/tmp/image'
         if type(image) is dict:
             headers = image.get('headers')
-            image_url = image.get('url')
+            image_url = image.get('uri')
         # check if the image is a local file path
         if type(image) is str:
             if not image.startswith('http'):
@@ -154,33 +154,38 @@ class SmartBodyCrop:
             sess.close()
             return img, crop_coordinates
 
-    def detect_parts(self, imgpath):
-        img1_raw = Image.open(imgpath)
-        img1 = np.asarray(img1_raw)
+    def detect_parts(self, image):
+        start = time.time()
+
+        imgpath = self._download_image(image)
+        img1 = Image.open(imgpath)
+        img1 = np.asarray(img1)
         input_width, input_height = img1.shape[0], img1.shape[1]
-        tf.reset_default_graph()
-
-        graph_def = graph_pb2.GraphDef()
-        with open('models/optimized_openpose.pb', 'rb') as f:
-            graph_def.ParseFromString(f.read())
-        tf.import_graph_def(graph_def, name='')
-
-        inputs = tf.get_default_graph().get_tensor_by_name('inputs:0')
-        heatmaps_tensor = tf.get_default_graph().get_tensor_by_name(
-            'Mconv7_stage6_L2/BiasAdd:0')
-        pafs_tensor = tf.get_default_graph().get_tensor_by_name(
-            'Mconv7_stage6_L1/BiasAdd:0')
 
         image = self.read_img(imgpath, input_width, input_height)
+        start = print_time("image loaded in: ", start)
+
+        if not SmartBodyCrop.initialized:
+            print("Loading the model...")
+            self.load_graph_def()
 
         with tf.Session() as sess:
+            inputs = tf.get_default_graph().get_tensor_by_name('inputs:0')
+            heatmaps_tensor = tf.get_default_graph().get_tensor_by_name(
+                'Mconv7_stage6_L2/BiasAdd:0')
+            pafs_tensor = tf.get_default_graph().get_tensor_by_name(
+                'Mconv7_stage6_L1/BiasAdd:0')
+
             heatMat, pafMat = sess.run(
                 [heatmaps_tensor, pafs_tensor], feed_dict={inputs: image})
 
-            heatMat, pafMat = heatMat[0], pafMat[0]
-            humans = estimate_pose(heatMat, pafMat)
+            start = print_time("tf session executed in: ", start)
+
+            humans = estimate_pose(heatMat[0], pafMat[0])
+            start = print_time("pose estimated in: ", start)
             # display
             image_h, image_w = img1.shape[:2]
+            img1_raw = Image.open(imgpath)
             img1 = draw_humans(img1_raw, humans)
 
             scale = 480.0 / image_h
